@@ -1,0 +1,7 @@
+{
+  "name": "ProtoCall AI",
+  "description": "A futuristic chat application that allows users to converse with an advanced AI through text or a real-time voice conversation using Gemini's Live API.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
