@@ -41,14 +41,8 @@ const App: React.FC = () => {
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
 
-  const ai = useMemo(() => {
-    if (!process.env.API_KEY) {
-      console.error("API_KEY environment variable not set.");
-      setError("API_KEY environment variable not set. Please configure it in your deployment settings.");
-      return null;
-    }
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
-  }, []);
+  // Initialize the AI client. Assumes API_KEY is provided by the deployment environment.
+  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY }), []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -76,11 +70,6 @@ const App: React.FC = () => {
         }
       }
       return;
-    }
-
-    if (!ai) {
-        setError("AI Client not initialized. Check API Key.");
-        return;
     }
 
     setIsConnecting(true);
@@ -266,7 +255,7 @@ const App: React.FC = () => {
   const handleSendTextMessage = async (e: React.FormEvent) => {
       e.preventDefault();
       const prompt = textInput.trim();
-      if (!prompt || !ai) return;
+      if (!prompt) return;
 
       const userMessage: ChatMessage = {
         id: crypto.randomUUID(),
@@ -365,10 +354,10 @@ const App: React.FC = () => {
             {!isLive ? (
               <button
                 onClick={handleToggleLive}
-                disabled={isConnecting || !ai}
+                disabled={isConnecting}
                 className={`px-8 py-3 rounded-full text-lg font-bold tracking-wider transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-opacity-50
                   bg-cyan-500 hover:bg-cyan-600 text-gray-900 focus:ring-cyan-400 shadow-lg shadow-cyan-500/30
-                  ${isConnecting || !ai ? 'opacity-50 cursor-not-allowed animate-pulse' : ''}
+                  ${isConnecting ? 'opacity-50 cursor-not-allowed animate-pulse' : ''}
                 `}
               >
                 {isConnecting ? 'CONNECTING...' : 'START LIVE SESSION'}
@@ -413,11 +402,10 @@ const App: React.FC = () => {
                     onChange={(e) => setTextInput(e.target.value)}
                     placeholder="Type a message or ask to generate an image..."
                     className="flex-grow bg-transparent border-none focus:ring-0 text-gray-200 placeholder-gray-500"
-                    disabled={!ai}
                 />
                 <button 
                     type="submit"
-                    disabled={!textInput || !ai}
+                    disabled={!textInput}
                     className="ml-4 p-2 rounded-full bg-cyan-500 text-gray-900 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
                     aria-label="Send message"
                 >
