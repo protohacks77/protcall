@@ -11,23 +11,6 @@ import { createBlob, decode, decodeAudioData } from './utils/audioUtils';
 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
 
 const App: React.FC = () => {
-  // Guard clause to check for API key before initializing anything.
-  if (!process.env.API_KEY) {
-    return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-gray-900 text-gray-100 p-4">
-        <div className="text-center p-8 bg-red-900/50 border border-red-500/50 rounded-lg max-w-lg">
-          <h1 className="text-3xl font-bold text-red-400 mb-4">Configuration Error</h1>
-          <p className="text-lg text-red-200">
-            The <code className="bg-red-800/70 px-2 py-1 rounded">API_KEY</code> environment variable is not set.
-          </p>
-          <p className="mt-2 text-red-300">
-            Please configure it in your deployment settings (e.g., Netlify, Vercel) and redeploy the application.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // AI speaking
@@ -58,8 +41,9 @@ const App: React.FC = () => {
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
 
-  // Initialize the AI client. Assumes API_KEY is provided by the deployment environment.
-  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY }), []);
+  // Use the hardcoded API Key as requested.
+  const apiKey = 'AIzaSyCiWzp8ztZJRYTrEhCMqEKRvSPBlN5BgH0';
+  const ai = useMemo(() => new GoogleGenAI({ apiKey }), [apiKey]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
