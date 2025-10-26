@@ -11,7 +11,7 @@ const Message: React.FC<MessageProps> = ({ message }) => {
 
   if (message.isLoading) {
     return (
-      <div className="flex my-2 justify-start">
+      <div className="flex my-2 justify-start message-anim">
         <div className="max-w-xl px-4 py-3 rounded-2xl shadow-lg bg-gray-700 text-gray-200 rounded-bl-none">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
@@ -24,7 +24,7 @@ const Message: React.FC<MessageProps> = ({ message }) => {
   }
 
   return (
-    <div className={`flex my-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div className={`flex my-2 ${isUser ? 'justify-end' : 'justify-start'} message-anim`}>
       <div
         className={`max-w-xl px-4 py-3 rounded-2xl shadow-lg ${
           isUser

@@ -1,32 +1,155 @@
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality, Chat } from '@google/genai';
-import { ChatMessage } from './types';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import Visualizer from './components/Visualizer';
-import Message from './components/Message';
-import LiveTranscription from './components/LiveTranscription';
-import ImageModal from './components/ImageModal';
 import { createBlob, decode, decodeAudioData } from './utils/audioUtils';
+import ImageGenerationAnimation from './components/ImageGenerationAnimation';
 
 const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+const imageKeywords = ['generate', 'create', 'draw', 'imagine', 'image of', 'picture of'];
+
+// --- UI COMPONENTS DEFINED WITHIN APP ---
+
+const Particles: React.FC = () => {
+  return (
+    <div className="particles-bg" aria-hidden="true">
+      {Array.from({ length: 30 }).map((_, i) => (
+        <div
+          key={i}
+          className="particle"
+          style={{
+            width: `${Math.random() * 3 + 1}px`,
+            height: `${Math.random() * 3 + 1}px`,
+            left: `${Math.random() * 100}%`,
+            top: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 20}s`,
+            animationDuration: `${Math.random() * 10 + 10}s`,
+          }}
+        />
+      ))}
+    </div>
+  );
+};
+
+const CosmicTitle: React.FC = () => (
+  <header className="absolute top-8 left-1/2 -translate-x-1/2 z-10 w-full px-4">
+    <h1 className="cosmic-title text-4xl md:text-6xl">ProtoCall AI</h1>
+  </header>
+);
+
+interface AIResponseDisplayProps {
+  text: string | null;
+  images: string[];
+}
+const AIResponseDisplay: React.FC<AIResponseDisplayProps> = ({ text, images }) => {
+  const animatedText = text?.split(' ').map((word, index) => (
+    <span key={index} className="word" style={{ animationDelay: `${index * 0.1}s` }}>
+      {word}&nbsp;
+    </span>
+  ));
+
+  return (
+    <div className="ai-response-container">
+      {text && <p className="ai-response-text">{animatedText}</p>}
+      {images.length > 0 && (
+        <div className="ai-response-images">
+          {images.map((url, index) => (
+            <img 
+              key={index} 
+              src={url} 
+              alt={`Generated image ${index + 1}`}
+              style={{ animationDelay: `${index * 0.2}s` }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const splitTextToSpans = (text: string) => {
+  return text.split('').map((char, index) => (
+    <span key={index} style={{'--i': index + 1} as React.CSSProperties}>
+      <span>{char === ' ' ? '\u00A0' : char}</span>
+    </span>
+  ));
+};
+
+const LiveSessionButton: React.FC<{ isLive: boolean, isConnecting: boolean, onClick: () => void }> = ({ isLive, isConnecting, onClick }) => {
+  return (
+    <label className="area">
+      <input type="checkbox" checked={isLive} onChange={onClick} disabled={isConnecting} />
+      <div className="area-button">
+        <svg width="423" height="274" viewBox="0 0 423 274" fill="none" stroke="currentColor" xmlns="http://www.w3.org/2000/svg">
+          <path d="M93.3368 136.663C49.6104 128.127 30.5087 134.168 2.08112 145.122" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M94.6914 170.451C55.042 190.819 43.7361 207.401 28.1198 233.623" strokeLinecap="round"></path>
+          <path d="M147.365 181.074C124.487 219.412 123.652 239.483 124.252 270.021" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M209.461 179.848L209.461 271.744" strokeLinecap="round"></path>
+          <path d="M271.59 181.074C294.468 219.412 295.303 239.483 294.703 270.021" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M327.264 170.451C366.913 190.819 378.219 207.401 393.835 233.623" strokeLinecap="round"></path>
+          <path d="M329.618 136.663C373.345 128.127 392.446 134.168 420.874 145.122" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M328.313 104.665C355.465 69.244 373.772 61.0955 402.313 50.4414" strokeLinecap="round"></path>
+          <path d="M268.666 93.3922C282.624 50.9621 297.219 37.204 320.646 17.6894" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M209.461 93.5837L209.461 1.68781" strokeLinecap="round"></path>
+          <path d="M150.289 93.3922C136.331 50.9621 121.736 37.204 98.3089 17.6894" strokeOpacity="0.4" strokeLinecap="round"></path>
+          <path d="M93.6422 104.665C66.4898 69.244 48.1828 61.0955 19.6421 50.4414" strokeLinecap="round"></path>
+        </svg>
+        <button className="button">
+          <div className="wrap">
+            <div className="reflex"></div>
+            <div className="outline"></div>
+            <div className="liquid">
+              <div className="waves">
+                <div className="wave-1"></div>
+                <div className="wave-2"></div>
+                <div className="wave-3"></div>
+              </div>
+            </div>
+            <div className="text">
+              <p className="state-1">{splitTextToSpans("START SESSION")}</p>
+              <p className="state-2">{splitTextToSpans("END SESSION")}</p>
+            </div>
+            <div className="drops"></div>
+          </div>
+        </button>
+      </div>
+      <div className="splash">
+        <div className="particles">
+          <div className="left">
+            <div className="particle particle-1"></div>
+            <div className="particle particle-2"></div>
+          </div>
+          <div className="right">
+            <div className="particle particle-1"></div>
+            <div className="particle particle-2"></div>
+          </div>
+        </div>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" version="1.1">
+        <defs>
+          <filter id="liquid">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"></feGaussianBlur>
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7" result="liquid"></feColorMatrix>
+          </filter>
+        </defs>
+      </svg>
+    </label>
+  );
+};
+
 
 const App: React.FC = () => {
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // AI speaking
   const [isListening, setIsListening] = useState(false); // User recording
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [textInput, setTextInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   
-  const [liveUserTranscription, setLiveUserTranscription] = useState('');
-  const [lastAiChunk, setLastAiChunk] = useState<{ text: string, duration: number, id: string } | null>(null);
-  const [currentSpeaker, setCurrentSpeaker] = useState<'user' | 'ai' | null>(null);
+  const [isResponding, setIsResponding] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [aiResponseText, setAiResponseText] = useState<string | null>(null);
+  const [aiImages, setAiImages] = useState<string[]>([]);
 
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalImages, setModalImages] = useState<string[]>([]);
-  
-  const lastTranscriptionText = useRef('');
   const sessionPromiseRef = useRef<Promise<any> | null>(null);
   const inputAudioContextRef = useRef<AudioContext | null>(null);
   const outputAudioContextRef = useRef<AudioContext | null>(null);
@@ -35,19 +158,11 @@ const App: React.FC = () => {
   const nextStartTimeRef = useRef<number>(0);
   const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const streamRef = useRef<MediaStream | null>(null);
-  const chatRef = useRef<Chat | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
 
-  // Use the hardcoded API Key as requested.
-  const apiKey = 'AIzaSyCiWzp8ztZJRYTrEhCMqEKRvSPBlN5BgH0';
-  const ai = useMemo(() => new GoogleGenAI({ apiKey }), [apiKey]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY! }), []);
 
   useEffect(() => {
     return () => {
@@ -57,9 +172,67 @@ const App: React.FC = () => {
       cleanupAudio();
     };
   }, []);
+  
+  const cleanupAudio = () => {
+      setIsLive(false);
+      setIsConnecting(false);
+      setIsListening(false);
+      setIsSpeaking(false);
+
+      if(scriptProcessorRef.current){
+          scriptProcessorRef.current.disconnect();
+          scriptProcessorRef.current = null;
+      }
+      if(mediaStreamSourceRef.current){
+          mediaStreamSourceRef.current.disconnect();
+          mediaStreamSourceRef.current = null;
+      }
+      streamRef.current?.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+      inputAudioContextRef.current?.close().then(() => inputAudioContextRef.current = null);
+      outputAudioContextRef.current?.close().then(() => outputAudioContextRef.current = null);
+      audioSourcesRef.current.clear();
+  }
+
+  const processImagePrompt = async (prompt: string) => {
+    setIsResponding(true);
+    setIsGenerating(true);
+    setAiResponseText(null);
+    setAiImages([]);
+
+    try {
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: prompt,
+            config: {
+                numberOfImages: 2,
+                outputMimeType: 'image/jpeg',
+                aspectRatio: '1:1',
+            },
+        });
+
+        const imageUrls = response.generatedImages.map(img => `data:image/jpeg;base64,${img.image.imageBytes}`);
+        
+        setAiImages(imageUrls);
+        setIsGenerating(false);
+        
+        setTimeout(() => {
+            setIsResponding(false);
+            setAiImages([]);
+        }, 8000); // Show images for 8 seconds
+        
+    } catch (err: any) {
+        setAiResponseText(`Sorry, I couldn't create that: ${err.message}`);
+        setIsGenerating(false);
+        setTimeout(() => {
+            setIsResponding(false);
+            setAiResponseText(null);
+        }, 8000);
+    }
+  }
 
   const handleToggleLive = useCallback(async () => {
-    if (isLive) {
+    if (isLive || isConnecting) {
       if (sessionPromiseRef.current) {
         try {
           const session = await sessionPromiseRef.current;
@@ -103,52 +276,43 @@ const App: React.FC = () => {
             };
             
             scriptProcessorRef.current.connect(inputAudioContext.destination);
-
+            mediaStreamSourceRef.current.connect(scriptProcessorRef.current);
+            setIsListening(true);
             setIsConnecting(false);
             setIsLive(true);
-            setMessages([{id: 'start', sender: 'ai', text: 'Live connection established. Press "Start Speaking" to talk.'}]);
           },
           onmessage: async (message: LiveServerMessage) => {
             const outputAudioContext = outputAudioContextRef.current;
             if (!outputAudioContext) return;
             
             if (message.serverContent?.outputTranscription) {
-              const text = message.serverContent.outputTranscription.text;
-              currentOutputTranscriptionRef.current += text;
-              lastTranscriptionText.current += text;
-              if (currentSpeaker !== 'ai') {
-                setCurrentSpeaker('ai');
-                setLiveUserTranscription(''); 
-              }
-
+              currentOutputTranscriptionRef.current += message.serverContent.outputTranscription.text;
             } else if (message.serverContent?.inputTranscription) {
-              const text = message.serverContent.inputTranscription.text;
-              currentInputTranscriptionRef.current += text;
-               if (currentSpeaker !== 'user') {
-                setCurrentSpeaker('user');
-                setLiveUserTranscription(text);
-                setLastAiChunk(null);
-              } else {
-                setLiveUserTranscription(prev => prev + text);
-              }
+              currentInputTranscriptionRef.current += message.serverContent.inputTranscription.text;
             }
 
             if (message.serverContent?.turnComplete) {
               const fullInput = currentInputTranscriptionRef.current.trim();
               const fullOutput = currentOutputTranscriptionRef.current.trim();
               
-              if(fullInput){
-                  setMessages(prev => [...prev, {id: crypto.randomUUID(), sender: 'user', text: fullInput}])
-              }
-              if(fullOutput){
-                  setMessages(prev => [...prev, {id: crypto.randomUUID(), sender: 'ai', text: fullOutput}])
-              }
-              
               currentInputTranscriptionRef.current = '';
               currentOutputTranscriptionRef.current = '';
-              setLiveUserTranscription('');
-              setCurrentSpeaker(null);
-              setLastAiChunk(null);
+
+              const isImagePrompt = imageKeywords.some(keyword => fullInput.toLowerCase().includes(keyword));
+
+              if (isImagePrompt && fullInput) {
+                if(sessionPromiseRef.current) {
+                  sessionPromiseRef.current.then(session => session.close());
+                }
+                processImagePrompt(fullInput);
+              } else if (fullOutput) {
+                setAiResponseText(fullOutput);
+                setIsResponding(true);
+                setTimeout(() => {
+                  setIsResponding(false);
+                  setAiResponseText(null);
+                }, 5000 + fullOutput.length * 50);
+              }
             }
 
             const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
@@ -157,15 +321,6 @@ const App: React.FC = () => {
               nextStartTimeRef.current = Math.max(nextStartTimeRef.current, outputAudioContext.currentTime);
               const audioBuffer = await decodeAudioData(decode(base64Audio), outputAudioContext, 24000, 1);
 
-              if (lastTranscriptionText.current) {
-                setLastAiChunk({
-                  text: lastTranscriptionText.current,
-                  duration: audioBuffer.duration,
-                  id: crypto.randomUUID(),
-                });
-                lastTranscriptionText.current = '';
-              }
-              
               const source = outputAudioContext.createBufferSource();
               source.buffer = audioBuffer;
               source.connect(outputAudioContext.destination);
@@ -205,7 +360,7 @@ const App: React.FC = () => {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
-          systemInstruction: 'You are ProtoCall AI, a friendly and helpful conversational assistant. Keep your responses concise and natural.',
+          systemInstruction: 'You are ProtoCall AI, a friendly and helpful conversational assistant. You can generate images if asked. Keep your responses concise and natural.',
         },
       });
     } catch (e: any) {
@@ -213,212 +368,30 @@ const App: React.FC = () => {
       setError(`Failed to start session: ${e.message}`);
       setIsConnecting(false);
     }
-  }, [isLive, currentSpeaker, ai]);
-  
-  const handleToggleSpeaking = () => {
-    if (!isLive || isConnecting || !mediaStreamSourceRef.current || !scriptProcessorRef.current) return;
-
-    if (isListening) {
-        mediaStreamSourceRef.current.disconnect(scriptProcessorRef.current);
-        setIsListening(false);
-    } else {
-        setLiveUserTranscription('');
-        setCurrentSpeaker('user');
-        mediaStreamSourceRef.current.connect(scriptProcessorRef.current);
-        setIsListening(true);
-    }
-  };
-
-  const cleanupAudio = () => {
-      setIsLive(false);
-      setIsConnecting(false);
-      setIsListening(false);
-      setIsSpeaking(false);
-      setLiveUserTranscription('');
-      setCurrentSpeaker(null);
-      setLastAiChunk(null);
-
-      if(scriptProcessorRef.current){
-          scriptProcessorRef.current.disconnect();
-          scriptProcessorRef.current = null;
-      }
-      if(mediaStreamSourceRef.current){
-          mediaStreamSourceRef.current.disconnect();
-          mediaStreamSourceRef.current = null;
-      }
-      streamRef.current?.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-      inputAudioContextRef.current?.close().then(() => inputAudioContextRef.current = null);
-      outputAudioContextRef.current?.close().then(() => outputAudioContextRef.current = null);
-      audioSourcesRef.current.clear();
-  }
-  
-  const handleSendTextMessage = async (e: React.FormEvent) => {
-      e.preventDefault();
-      const prompt = textInput.trim();
-      if (!prompt) return;
-
-      const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
-        sender: 'user',
-        text: prompt,
-      };
-      setMessages(prev => [...prev, userMessage]);
-      setTextInput('');
-
-      const aiMessageId = crypto.randomUUID();
-      const loadingMessage: ChatMessage = {
-        id: aiMessageId,
-        sender: 'ai',
-        text: '',
-        isLoading: true,
-      };
-      setMessages(prev => [...prev, loadingMessage]);
-
-      const imageKeywords = ['generate', 'create', 'draw', 'imagine', 'image of', 'picture of'];
-      const isImagePrompt = imageKeywords.some(keyword => prompt.toLowerCase().includes(keyword));
-
-      try {
-        if (isImagePrompt) {
-          const response = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: prompt,
-            config: {
-              numberOfImages: 2,
-              outputMimeType: 'image/jpeg',
-            },
-          });
-
-          const imageUrls = response.generatedImages.map(img => `data:image/jpeg;base64,${img.image.imageBytes}`);
-          
-          const aiTextMessage: ChatMessage = {
-            id: aiMessageId,
-            sender: 'ai',
-            text: "I've generated some images for you.",
-          };
-          setMessages(prev => prev.map(msg => msg.id === aiMessageId ? aiTextMessage : msg));
-
-          setModalImages(imageUrls);
-          setIsModalOpen(true);
-
-        } else {
-          if (!chatRef.current) {
-            chatRef.current = ai.chats.create({ model: 'gemini-2.5-flash' });
-          }
-          const response = await chatRef.current.sendMessage({ message: prompt });
-          
-          const aiTextMessage: ChatMessage = {
-            id: aiMessageId,
-            sender: 'ai',
-            text: response.text,
-          };
-
-          setMessages(prev => prev.map(msg => msg.id === aiMessageId ? aiTextMessage : msg));
-        }
-      } catch (err: any) {
-        console.error("Error processing text message:", err);
-        const errorMessage: ChatMessage = {
-          id: aiMessageId,
-          sender: 'ai',
-          text: `Sorry, I ran into an error: ${err.message}`,
-        };
-        setMessages(prev => prev.map(msg => msg.id === aiMessageId ? errorMessage : msg));
-      }
-    };
-    
-    const handleCloseModal = () => {
-        setIsModalOpen(false);
-        setModalImages([]);
-    };
+  }, [isLive, isConnecting, ai]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center bg-gray-900 text-gray-100 p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full bg-grid-cyan-500/[0.05]"></div>
-      <div className="w-full max-w-4xl mx-auto flex flex-col h-full z-10">
-        <header className="text-center py-6">
-          <h1 className="text-5xl font-bold text-cyan-400 tracking-widest uppercase">
-            ProtoCall AI
-          </h1>
-          <p className="text-gray-400 mt-2 tracking-wider uppercase">Your Real-Time Conversational Partner</p>
-        </header>
+    <div className="h-screen w-screen relative flex items-center justify-center">
+        <Particles />
+        <CosmicTitle />
 
-        <main className="flex-grow flex flex-col items-center justify-center bg-black/20 rounded-xl border border-cyan-500/20 shadow-2xl shadow-cyan-500/10 backdrop-blur-sm p-6">
-          <Visualizer isLive={isLive} isSpeaking={isSpeaking} isConnecting={isConnecting} isListening={isListening}/>
+        {isResponding ? (
+          isGenerating ? (
+            <ImageGenerationAnimation />
+          ) : (
+            <AIResponseDisplay text={aiResponseText} images={aiImages} />
+          )
+        ) : (
+          <div className="interaction-hub" style={{ opacity: isResponding ? 0 : 1 }}>
+            <Visualizer isLive={isLive} isSpeaking={isSpeaking} isConnecting={isConnecting} isListening={isListening}/>
 
-          <LiveTranscription
-            userText={liveUserTranscription}
-            aiChunk={lastAiChunk}
-            speaker={currentSpeaker}
-          />
-
-          <div className="mt-4 flex items-center justify-center space-x-4">
-            {!isLive ? (
-              <button
-                onClick={handleToggleLive}
-                disabled={isConnecting}
-                className={`px-8 py-3 rounded-full text-lg font-bold tracking-wider transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-opacity-50
-                  bg-cyan-500 hover:bg-cyan-600 text-gray-900 focus:ring-cyan-400 shadow-lg shadow-cyan-500/30
-                  ${isConnecting ? 'opacity-50 cursor-not-allowed animate-pulse' : ''}
-                `}
-              >
-                {isConnecting ? 'CONNECTING...' : 'START LIVE SESSION'}
-              </button>
-            ) : (
-              <>
-                <button
-                  onClick={handleToggleSpeaking}
-                  disabled={isSpeaking} // Disable while AI is talking
-                  className={`px-8 py-3 rounded-full text-lg font-bold tracking-wider transition-all duration-300 ease-in-out focus:outline-none focus:ring-4 focus:ring-opacity-50
-                    ${isListening
-                      ? 'bg-amber-500 hover:bg-amber-600 text-white focus:ring-amber-400 shadow-lg shadow-amber-500/30'
-                      : 'bg-cyan-500 hover:bg-cyan-600 text-gray-900 focus:ring-cyan-400 shadow-lg shadow-cyan-500/30'}
-                    ${isSpeaking ? 'opacity-50 cursor-not-allowed' : ''}
-                  `}
-                >
-                  {isListening ? 'FINISH SPEAKING' : 'START SPEAKING'}
-                </button>
-                <button
-                  onClick={handleToggleLive}
-                  className="px-6 py-3 rounded-full text-base font-bold tracking-wider transition-colors duration-300 bg-red-800/80 hover:bg-red-700 text-red-100 focus:outline-none focus:ring-4 focus:ring-red-500/50"
-                >
-                  END SESSION
-                </button>
-              </>
-            )}
-          </div>
-          {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
-        </main>
-        
-        <div className="mt-6 w-full flex-grow flex flex-col">
-            <div className="flex-grow h-64 overflow-y-auto p-4 bg-black/20 rounded-t-xl border-t border-x border-cyan-500/20 backdrop-blur-sm">
-                {messages.map((msg) => (
-                    <Message key={msg.id} message={msg} />
-                ))}
-                <div ref={messagesEndRef} />
+            <div className="mt-8 flex flex-col items-center justify-center space-y-4">
+               <LiveSessionButton isLive={isLive} isConnecting={isConnecting} onClick={handleToggleLive} />
             </div>
-            <form onSubmit={handleSendTextMessage} className="flex items-center p-4 bg-gray-800/50 rounded-b-xl border-b border-x border-cyan-500/20 backdrop-blur-sm">
-                <input
-                    type="text"
-                    value={textInput}
-                    onChange={(e) => setTextInput(e.target.value)}
-                    placeholder="Type a message or ask to generate an image..."
-                    className="flex-grow bg-transparent border-none focus:ring-0 text-gray-200 placeholder-gray-500"
-                />
-                <button 
-                    type="submit"
-                    disabled={!textInput}
-                    className="ml-4 p-2 rounded-full bg-cyan-500 text-gray-900 hover:bg-cyan-600 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
-                    aria-label="Send message"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                    </svg>
-                </button>
-            </form>
-        </div>
+            {error && <p className="text-red-400 mt-4 text-center">{error}</p>}
+          </div>
+        )}
       </div>
-      {isModalOpen && <ImageModal images={modalImages} onClose={handleCloseModal} />}
-    </div>
   );
 };
 

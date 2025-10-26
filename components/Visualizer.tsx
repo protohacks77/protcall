@@ -8,18 +8,10 @@ interface VisualizerProps {
 }
 
 const Visualizer: React.FC<VisualizerProps> = ({ isLive, isSpeaking, isConnecting, isListening }) => {
-  const getStatusText = () => {
-    if (isConnecting) return 'INITIALIZING...';
-    if (isSpeaking) return 'RECEIVING...';
-    if (isListening) return 'RECORDING...';
-    if (isLive) return 'READY';
-    return 'IDLE';
-  };
-  
   return (
     <div className="flex flex-col items-center justify-center p-4">
       <div className="relative w-48 h-48 flex items-center justify-center">
-        {isSpeaking ? (
+        {isSpeaking || isConnecting ? (
           <svg className="pl" viewBox="0 0 240 240">
             <circle className="pl__ring pl__ring--a" cx="120" cy="120" r="105" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 660" strokeDashoffset="-330" strokeLinecap="round"></circle>
             <circle className="pl__ring pl__ring--b" cx="120" cy="120" r="35" fill="none" stroke="#000" strokeWidth="20" strokeDasharray="0 220" strokeDashoffset="-110" strokeLinecap="round"></circle>
@@ -49,7 +41,6 @@ const Visualizer: React.FC<VisualizerProps> = ({ isLive, isSpeaking, isConnectin
           })()
         )}
       </div>
-      <p className="mt-6 text-cyan-400 font-bold tracking-widest text-lg uppercase">{getStatusText()}</p>
     </div>
   );
 };
