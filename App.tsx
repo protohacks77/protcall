@@ -395,7 +395,10 @@ const ProtoCallApp: React.FC<{ apiKey: string }> = ({ apiKey }) => {
 }
 
 const App: React.FC = () => {
-  const apiKey = process.env.API_KEY;
+  // Hosting platforms like Netlify require a specific prefix (e.g., VITE_)
+  // to expose environment variables to the client-side code.
+  // This checks for both the standard and prefixed variable names.
+  const apiKey = process.env.VITE_API_KEY || process.env.API_KEY;
 
   if (!apiKey) {
     return (
@@ -407,16 +410,14 @@ const App: React.FC = () => {
             <p className="text-xl text-gray-300 mb-4">
                 The Gemini API Key is missing.
             </p>
-            <p className="text-md text-gray-400 mt-2">
-                Please make sure the <code className="bg-gray-700 p-1 rounded font-mono">API_KEY</code> environment variable is set in your hosting environment (e.g., Netlify).
-            </p>
-            <div className="mt-6 pt-4 border-t border-gray-700 text-left">
-                <h3 className="text-lg text-cyan-400 font-semibold mb-2">Troubleshooting Tip:</h3>
-                <p className="text-sm text-gray-400">
-                    For security, most hosting platforms do not expose environment variables to the browser by default. You often need to prefix the variable name.
+            <div className="mt-6 pt-4 border-t border-gray-700 text-left bg-gray-900/50 p-4 rounded-md">
+                <h3 className="text-lg text-cyan-400 font-semibold mb-3">Action Required:</h3>
+                <p className="text-md text-gray-300">
+                    To fix this, go to your hosting provider's settings (e.g., Netlify) and ensure you have an environment variable named:
                 </p>
+                <code className="block bg-gray-700 p-2 rounded font-mono my-3 text-center text-lg text-cyan-300 tracking-widest">VITE_API_KEY</code>
                 <p className="text-sm text-gray-400 mt-2">
-                    Try renaming your variable in your Netlify settings from <code className="bg-gray-700 p-1 rounded font-mono">API_KEY</code> to <code className="bg-gray-700 p-1 rounded font-mono">VITE_API_KEY</code> and then redeploying your site.
+                   This is necessary for the key to be securely available to the application in the browser. Hardcoding keys is a major security risk. After adding the variable, you will need to redeploy your site.
                 </p>
             </div>
         </div>
