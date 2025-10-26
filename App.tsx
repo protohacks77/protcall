@@ -402,14 +402,23 @@ const App: React.FC = () => {
       <div className="h-screen w-screen relative flex items-center justify-center">
         <Particles />
         <CosmicTitle />
-        <div className="z-10 text-center p-8 bg-black/50 rounded-lg border border-red-500/50 shadow-lg shadow-red-500/20">
+        <div className="z-10 text-center p-8 bg-black/50 rounded-lg border border-red-500/50 shadow-lg shadow-red-500/20 max-w-2xl">
             <h2 className="text-3xl text-red-400 font-bold mb-4">Configuration Error</h2>
-            <p className="text-xl text-gray-300">
+            <p className="text-xl text-gray-300 mb-4">
                 The Gemini API Key is missing.
             </p>
             <p className="text-md text-gray-400 mt-2">
                 Please make sure the <code className="bg-gray-700 p-1 rounded font-mono">API_KEY</code> environment variable is set in your hosting environment (e.g., Netlify).
             </p>
+            <div className="mt-6 pt-4 border-t border-gray-700 text-left">
+                <h3 className="text-lg text-cyan-400 font-semibold mb-2">Troubleshooting Tip:</h3>
+                <p className="text-sm text-gray-400">
+                    For security, most hosting platforms do not expose environment variables to the browser by default. You often need to prefix the variable name.
+                </p>
+                <p className="text-sm text-gray-400 mt-2">
+                    Try renaming your variable in your Netlify settings from <code className="bg-gray-700 p-1 rounded font-mono">API_KEY</code> to <code className="bg-gray-700 p-1 rounded font-mono">VITE_API_KEY</code> and then redeploying your site.
+                </p>
+            </div>
         </div>
       </div>
     );
