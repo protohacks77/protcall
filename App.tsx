@@ -137,8 +137,7 @@ const LiveSessionButton: React.FC<{ isLive: boolean, isConnecting: boolean, onCl
   );
 };
 
-
-const App: React.FC = () => {
+const ProtoCallApp: React.FC<{ apiKey: string }> = ({ apiKey }) => {
   const [isLive, setIsLive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false); // AI speaking
@@ -162,7 +161,7 @@ const App: React.FC = () => {
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
 
-  const ai = useMemo(() => new GoogleGenAI({ apiKey: process.env.API_KEY! }), []);
+  const ai = useMemo(() => new GoogleGenAI({ apiKey }), [apiKey]);
 
   useEffect(() => {
     return () => {
@@ -393,6 +392,30 @@ const App: React.FC = () => {
         )}
       </div>
   );
+}
+
+const App: React.FC = () => {
+  const apiKey = process.env.API_KEY;
+
+  if (!apiKey) {
+    return (
+      <div className="h-screen w-screen relative flex items-center justify-center">
+        <Particles />
+        <CosmicTitle />
+        <div className="z-10 text-center p-8 bg-black/50 rounded-lg border border-red-500/50 shadow-lg shadow-red-500/20">
+            <h2 className="text-3xl text-red-400 font-bold mb-4">Configuration Error</h2>
+            <p className="text-xl text-gray-300">
+                The Gemini API Key is missing.
+            </p>
+            <p className="text-md text-gray-400 mt-2">
+                Please make sure the <code className="bg-gray-700 p-1 rounded font-mono">API_KEY</code> environment variable is set in your hosting environment (e.g., Netlify).
+            </p>
+        </div>
+      </div>
+    );
+  }
+
+  return <ProtoCallApp apiKey={apiKey} />;
 };
 
 export default App;
