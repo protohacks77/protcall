@@ -395,10 +395,10 @@ const ProtoCallApp: React.FC<{ apiKey: string }> = ({ apiKey }) => {
 }
 
 const App: React.FC = () => {
-  // Hosting platforms like Netlify require a specific prefix (e.g., VITE_)
+  // In Vite, environment variables are exposed on `import.meta.env`.
+  // Hosting platforms like Netlify require a `VITE_` prefix
   // to expose environment variables to the client-side code.
-  // This checks for both the standard and prefixed variable names.
-  const apiKey = process.env.VITE_API_KEY || process.env.API_KEY;
+  const apiKey = import.meta.env.VITE_API_KEY;
 
   if (!apiKey) {
     return (
